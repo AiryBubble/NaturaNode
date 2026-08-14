@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "naturanode",
+  "version": "${version}",
+  "name": "NaturaNode",
+  "description": "Minecraft antispam mod",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/naturanode/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "com.github.airybubble.naturanode.client.NaturanodeDataGenerator"
+    ],
+    "client": [
+      "com.github.airybubble.naturanode.client.NaturanodeClient"
+    ],
+    "main": [
+      "com.github.airybubble.naturanode.Naturanode"
+    ]
+  },
+  "mixins": [
+    "naturanode.mixins.json",
+    {
+      "config": "naturanode.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
