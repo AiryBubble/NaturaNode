@@ -3,11 +3,16 @@
   "id": "naturanode",
   "version": "${version}",
   "name": "NaturaNode",
-  "description": "Minecraft antispam mod",
-  "authors": [],
-  "contact": {},
+  "description": "client-side antispam mod. Simple and requires no setup.",
+  "authors": [
+    "AiryBubble"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/naturanode",
+    "sources": "https://github.com/AiryBubble/NaturaNode",
+    "issues": "https://github.com/AiryBubble/NaturaNode/issues"
+  },
   "license": "MIT",
-  "icon": "assets/naturanode/icon.png",
   "environment": "client",
   "entrypoints": {
     "fabric-datagen": [
