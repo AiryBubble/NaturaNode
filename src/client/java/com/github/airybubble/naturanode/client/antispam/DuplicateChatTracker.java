@@ -8,18 +8,25 @@ import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class DuplicateChatTracker {
 
     public static final DuplicateChatTracker CHAT_TRACKER = new DuplicateChatTracker();
     public static final DuplicateChatTracker GAME_TRACKER = new DuplicateChatTracker();
 
-    private String lastKey = null;
-    private Component lastOriginalMessage = null;
-    private int count = 0;
+    private static final int MAX_TRACKED_ENTRIES = 200;
 
-    private int lastVisibleLineCount = 0;
+    private final Map<String, StackState> entries = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, StackState> eldest) {
+            return size() > MAX_TRACKED_ENTRIES;
+        }
+    };
 
     private DuplicateChatTracker() {
     }
@@ -27,6 +34,13 @@ public final class DuplicateChatTracker {
     @FunctionalInterface
     public interface MessageAdder {
         void add(ChatComponent chatHud, Component text);
+    }
+
+    private static final class StackState {
+        private Component originalMessage;
+        private int count;
+        private GuiMessage logicalRef;
+        private final List<GuiMessage.Line> visibleLineRefs = new ArrayList<>();
     }
 
     public synchronized boolean handle(Component message, String dedupeKey, MessageAdder adder) {
@@ -40,23 +54,34 @@ public final class DuplicateChatTracker {
         List<GuiMessage> logical = accessor.naturanode$getAllMessages();
         List<GuiMessage.Line> visible = accessor.naturanode$getTrimmedMessages();
 
+        StackState entry = entries.get(dedupeKey);
         Component textToAdd;
-        if (dedupeKey.equals(lastKey)) {
-            count++;
-            textToAdd = buildStackedText(lastOriginalMessage, count);
 
-            removeFront(logical, 1);
-            removeFront(visible, lastVisibleLineCount);
+        if (entry != null) {
+            entry.count++;
+            textToAdd = buildStackedText(entry.originalMessage, entry.count);
+
+            removeByIdentity(logical, entry.logicalRef);
+            for (GuiMessage.Line line : entry.visibleLineRefs) {
+                removeByIdentity(visible, line);
+            }
+            entry.visibleLineRefs.clear();
         } else {
-            lastKey = dedupeKey;
-            lastOriginalMessage = message;
-            count = 1;
+            entry = new StackState();
+            entry.originalMessage = message;
+            entry.count = 1;
             textToAdd = message;
+            entries.put(dedupeKey, entry);
         }
 
         int visibleBefore = visible.size();
         adder.add(chatHud, textToAdd);
-        lastVisibleLineCount = Math.max(visible.size() - visibleBefore, 1);
+        int addedVisibleLines = Math.max(visible.size() - visibleBefore, 1);
+
+        entry.logicalRef = logical.isEmpty() ? null : logical.get(0);
+        for (int i = 0; i < addedVisibleLines && i < visible.size(); i++) {
+            entry.visibleLineRefs.add(visible.get(i));
+        }
 
         return false;
     }
@@ -67,16 +92,20 @@ public final class DuplicateChatTracker {
         return text;
     }
 
-    private void removeFront(List<?> list, int n) {
-        for (int i = 0; i < n && !list.isEmpty(); i++) {
-            list.removeFirst();
+    private void removeByIdentity(List<?> list, Object ref) {
+        if (ref == null) {
+            return;
+        }
+        Iterator<?> it = list.iterator();
+        while (it.hasNext()) {
+            if (it.next() == ref) {
+                it.remove();
+                return;
+            }
         }
     }
 
     public synchronized void reset() {
-        lastKey = null;
-        lastOriginalMessage = null;
-        count = 0;
-        lastVisibleLineCount = 0;
+        entries.clear();
     }
 }
